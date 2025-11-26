@@ -4,17 +4,21 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, FileText, Zap } from 'lucide-react'
+import { Loader2, FileText, Zap, AlertCircle } from 'lucide-react'
 
 export default function ResumosPage() {
   const [inputText, setInputText] = useState('')
   const [summary, setSummary] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const generateSummary = async () => {
     if (!inputText.trim()) return
 
     setLoading(true)
+    setError('')
+    setSummary('')
+    
     try {
       const response = await fetch('/api/summarize', {
         method: 'POST',
@@ -24,15 +28,16 @@ export default function ResumosPage() {
         body: JSON.stringify({ text: inputText }),
       })
 
+      const data = await response.json()
+
       if (!response.ok) {
-        throw new Error('Erro ao gerar resumo')
+        throw new Error(data.error || 'Erro ao gerar resumo')
       }
 
-      const data = await response.json()
       setSummary(data.summary)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro:', error)
-      setSummary('Erro ao gerar resumo. Tente novamente.')
+      setError(error.message || 'Erro ao gerar resumo. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -97,7 +102,17 @@ export default function ResumosPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
-              {summary ? (
+              {error ? (
+                <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-lg animate-fade-in">
+                  <div className="flex items-start">
+                    <AlertCircle className="w-6 h-6 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-semibold text-red-800 dark:text-red-300 mb-1">Erro ao gerar resumo</h3>
+                      <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : summary ? (
                 <div className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border-l-4 border-purple-500 animate-fade-in">
                   {summary}
                 </div>

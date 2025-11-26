@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 export async function POST(request: NextRequest) {
   try {
     const { text } = await request.json()
@@ -13,8 +9,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Texto inválido' }, { status: 400 })
     }
 
+    // Validar se a API key existe
+    if (!process.env.OPENAI_API_KEY) {
+      console.error('OPENAI_API_KEY não configurada')
+      return NextResponse.json({ 
+        error: 'Chave da API OpenAI não configurada. Configure OPENAI_API_KEY no arquivo .env.local' 
+      }, { status: 500 })
+    }
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -32,8 +40,24 @@ export async function POST(request: NextRequest) {
     const summary = completion.choices[0]?.message?.content?.trim() || 'Erro ao gerar resumo'
 
     return NextResponse.json({ summary })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro na API:', error)
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 })
+    
+    // Mensagens de erro mais específicas
+    if (error?.status === 401) {
+      return NextResponse.json({ 
+        error: 'Chave da API OpenAI inválida. Verifique sua OPENAI_API_KEY no arquivo .env.local' 
+      }, { status: 401 })
+    }
+    
+    if (error?.status === 429) {
+      return NextResponse.json({ 
+        error: 'Limite de requisições excedido. Tente novamente em alguns instantes.' 
+      }, { status: 429 })
+    }
+
+    return NextResponse.json({ 
+      error: error?.message || 'Erro interno do servidor' 
+    }, { status: 500 })
   }
 }
